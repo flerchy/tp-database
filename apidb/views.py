@@ -4,7 +4,7 @@ import json
 from django.http import JsonResponse
 
 
-db = MySQLdb.connect("localhost","root","Mar1nkinS5s","testdb") 
+db = MySQLdb.connect("localhost","root","Mar1nkinS5s","projdb") 
 db.set_character_set('utf8')
 dbc = db.cursor()
 dbc.execute('SET Names utf8;')
