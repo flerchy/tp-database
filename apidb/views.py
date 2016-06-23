@@ -19,12 +19,13 @@ def gen_dict(a, b):
     return dict(zip(a, b))
 
 def createu(request):
+    print "creating user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    print json.dumps(postRequest['username'])
-    print ""
+    ##print json.dumps(postRequest['username'])
+    ##print ""
     if postRequest['email'] is None:
         return JsonResponse({"code": 3, "response": "error message" }) 
     sql = "INSERT INTO User(username, about, isAnonymous, name, email) VALUES(" + json.dumps(postRequest['username']) + ", "
@@ -32,7 +33,7 @@ def createu(request):
     sql += str(postRequest.get('isAnonymous', 'False')) + ", "
     sql += json.dumps(postRequest['name']) + ", "
     sql += json.dumps(postRequest['email']) + ");"
-    print sql
+    #print sql
     try:
         cursor.execute(sql)
     except MySQLdb.IntegrityError:
@@ -55,6 +56,7 @@ def createu(request):
 
 
 def createf(request):
+    print "creating forum"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -62,7 +64,7 @@ def createf(request):
     sql = "insert into Forum(name, short_name, user) values ('"+ postRequest['name'] + "',\
     '"+postRequest.get('short_name', '') + "', '"+postRequest['user'] + "');"
     
-    print sql
+    #print sql
     try:
         cursor.execute(sql)
     except MySQLdb.IntegrityError:
@@ -83,6 +85,7 @@ def createf(request):
 
 
 def createt(request):
+    print "creating thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -95,7 +98,7 @@ def createt(request):
     "', '" + postRequest['title'] +\
     "', '" + postRequest['user'] + \
     "', '" + postRequest['date'] + "');"
-    print sql
+    #print sql
     try:
         cursor.execute(sql)
     except MySQLdb.IntegrityError:
@@ -121,11 +124,12 @@ def createt(request):
 
 
 def createp(request):
+    print "creating post"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "insert into Post(isApproved, user, date, message, isSpam, isHighlighted, thread, forum, isDeleted, isEdited, parent) values (" +\
+    sql = "insert into Posts(isApproved, user, date, message, isSpam, isHighlighted, thread, forum, isDeleted, isEdited, parent) values (" +\
     str(postRequest.get('isApproved', 'False')) + ",'" +\
     str(postRequest['user']) + "','" +\
     str(postRequest['date']) + "','" +\
@@ -136,48 +140,54 @@ def createp(request):
     str(postRequest['forum']) +  "'," +\
     str(postRequest.get('isDeleted', 'False')) + "," +\
     str(postRequest.get('isEdited', 'False')) +  ", "
+    parentSign = None
     if postRequest["parent"]:
         if postRequest["parent"] is None:
             sql += "null"
         else:
+            parentSign = postRequest["parent"]
             sql += str(postRequest["parent"])
     else:
         sql += "null"
     sql += ");"
-    print sql
+    #print sql
     try:
         cursor.execute(sql)
     except:
         return JsonResponse({'code': 3, 'response': 'error message'})
     db.commit()
-    resp = "select date, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, message, parent, thread, user from Post where id=" + str(cursor.lastrowid) + ";"
-    cursor.execute(resp)
-    results = cursor.fetchall()
-    for row in results:
-        date = str(row[0])
-        forum = row[1]
-        id = row[2]
-        isApproved = row[3]
-        isDeleted = row[4]
-        isEdited = row[5]
-        isHighlighted = row[6]
-        isSpam = row[7]
-        message = row[8]
-        parent = row[9]
-        thread = row[10]
-        user = row[11]
+    #resp = "select date, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, message, parent, thread, user from Posts where id=" + str(cursor.lastrowid) + ";"
+    #print resp
+    #cursor.execute(resp)
+    #results = cursor.fetchall()
+    date = postRequest['date']
+    forum = postRequest['forum']
+    id = cursor.lastrowid
+    isApproved = postRequest.get('isApproved', False)
+    isDeleted = postRequest.get('isDeleted', False)
+    isEdited = postRequest.get('isEdited', False)
+    isHighlighted = postRequest.get('isHighlighted', False)
+    isSpam = postRequest.get('isDeleted', False)
+    message = postRequest['message']
+    parent = parentSign
+    thread = postRequest["thread"]
+    user = postRequest['user']
     names = ["date", "forum", "id", "isApproved", "isDeleted", "isEdited", "isHighlighted", "isSpam", "message", "parent", "thread", "user"]
     fields = [eval(x) for x in names]
+    #print success_response(gen_dict(names, fields))
+    #names = ["status"]
+    #fields = ["ok"]
     return success_response(gen_dict(names, fields))
 
 
 def detailsf(request):
+    print "forum details"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     sql = "select * from Forum where short_name='" + request.GET.get('forum','') + "';"
-    print sql
+    #print sql
     user = None
     cursor.execute(sql)
     results = cursor.fetchall()
@@ -190,7 +200,7 @@ def detailsf(request):
         return JsonResponse({'code': 3, 'response': 'invalid user name'})
     if 'related' in request.GET:
         sql = "select * from User where email='" + user + "';"
-        print sql
+        #print sql
         cursor.execute(sql)
         res = cursor.fetchall()
         for row in res: 
@@ -224,11 +234,12 @@ def detailsf(request):
 
 
 def detailsp(request):
+    print "post details"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Post where id="+request.GET['post'] + ";"
+    sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Posts where id="+request.GET['post'] + ";"
     cursor.execute(sql)
     results = cursor.fetchall()
     row = []
@@ -257,12 +268,13 @@ def detailsp(request):
 
 
 def detailsu(request):
+    print "user details"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     sql = "select * from User where email='"+request.GET['user'] + "';"
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = []
@@ -278,19 +290,19 @@ def detailsu(request):
         following = []
         subscriptions = [] 
         sql2 = "select following from Follow where follower='" + email + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         result = cursor.fetchall()
         for row in result:
             following.append(row[0])
         sql3 = "select follower from Follow where following='" + email + "';"
-        print sql3
+        #print sql3
         cursor.execute(sql3)
         result1 = cursor.fetchall()
         for row in result1:
             followers.append(row[0])
         sql4 = "select * from Subscribe where subscriber='" + email + "';"
-        print sql4
+        #print sql4
         cursor.execute(sql4)
         result2 = cursor.fetchall()
         for row in result2:
@@ -301,12 +313,13 @@ def detailsu(request):
 
 
 def detailst(request):
+    print "thread details"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     sql = "select * from Thread where id='"+request.GET['thread'] + "';"
-    print sql
+    #print sql
     try:
         cursor.execute(sql)
     except:
@@ -321,14 +334,14 @@ def detailst(request):
         data = dict(zip(names, row))
         data["points"] = data["likes"] - data["dislikes"]
         data["date"] = str(data["date"])
-        sql2 = "select count(*) from Post where isDeleted=0 and thread=" + str(data["id"]) + ";"
+        sql2 = "select count(*) from Posts where isDeleted=0 and thread=" + str(data["id"]) + ";"
         cursor.execute(sql2)
         resp = cursor.fetchall()
         for row2 in resp:
             data["posts"] = row2[0]
         if "user" in request.GET.getlist('related'):
             sql1 = "select * from User where email='" + data["user"]  + "';"
-            print sql1
+            #print sql1
             cursor.execute(sql1)
             results1 = cursor.fetchall()
             ansUser = []
@@ -338,7 +351,7 @@ def detailst(request):
                 data["user"]["followers"] = data["user"]["following"] = data["user"]["subsctiptions"] = []
         if "forum" in request.GET.getlist('related'):
             sql1 = "select * from Forum where name='" + data["forum"] + "';"
-            print sql1
+            #print sql1
             cursor.execute(sql1)
             results1 = cursor.fetchall()
             ansForum = []
@@ -352,22 +365,23 @@ def detailst(request):
     return success_response(data)
 
 def listpostsf(request):
-    print ">>>>> entering listposts from forum"
+    print "list posts from forum"
+    ##print ">>>>> entering listposts from forum"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     if ('since' in request.GET):
         datesince = request.GET['since']
-        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Post where forum='"+ request.GET.get('forum', '') + "' and date>='"+ str(datesince) + "' "
+        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Posts where forum='"+ request.GET.get('forum', '') + "' and date>='"+ str(datesince) + "' "
     else:
-        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Post where forum='"+request.GET.get('forum', '') + "' " 
+        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted, isSpam, likes, message, parent, thread, user from Posts where forum='"+request.GET.get('forum', '') + "' " 
     order = request.GET.get('order', 'desc')
     sql = sql + "order by date " + order 
     if ('limit' in request.GET):
         sql += " limit " + request.GET["limit"] 
     sql += ";"
-    print ">>>>> sql= ", sql
+    ##print ">>>>> sql= ", sql
     cursor.execute(sql)
     results = cursor.fetchall()
     total = []
@@ -376,7 +390,7 @@ def listpostsf(request):
         dislikes = row[1]
         forum = row[2]
         id = row[3]
-        print ">>>>>", id
+        ##print ">>>>>", id
         isApproved = row[4]
         isDeleted = row[5]
         isEdited = row[6]
@@ -392,7 +406,7 @@ def listpostsf(request):
             for i in request.GET.getlist('related'):
                 if (i == 'thread'):
                     sql2 = "select * from Thread where id="+str(thread) + ";"
-                    print sql2
+                    #print sql2
                     trdid = str(thread)
                     cursor.execute(sql2)
                     results2 = cursor.fetchall()
@@ -401,7 +415,7 @@ def listpostsf(request):
                         thread = dict(zip(names, row)) 
                         thread["points"] = thread["likes"] - thread["dislikes"]
                         thread["date"] = str(thread["date"])
-                        sql2 = "select count(*) from Post where thread=" + trdid + ";"
+                        sql2 = "select count(*) from Posts where thread=" + trdid + ";"
                         cursor.execute(sql2)
                         resp = cursor.fetchall()
                         thread["posts"] = None
@@ -409,7 +423,7 @@ def listpostsf(request):
                             thread["posts"] = row2[0]   
                 if (i == 'forum'):
                     sql2 = "select * from Forum where short_name='"+str(forum) + "';"
-                    print sql2
+                    #print sql2
                     cursor.execute(sql2)
                     results2 = cursor.fetchall()
                     name = None
@@ -424,7 +438,7 @@ def listpostsf(request):
                              "user": fuser}
                 if (i == 'user'):
                     sql2 = "select * from User where email='" + str(user) + "';"
-                    print sql2
+                    #print sql2
                     cursor.execute(sql2)
                     results2 = cursor.fetchall()
                     for row in results2:      
@@ -465,11 +479,12 @@ def listpostsf(request):
     return JsonResponse({"code": 0, "response": total})
 
 def listp(request):
+    print "list posts"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "select * from Post "
+    sql = "select * from Posts "
     if 'forum' in request.GET:
         forum = request.GET['forum']
         sql += "where forum='"+ forum + "' "
@@ -486,7 +501,7 @@ def listp(request):
         limit = request.GET['limit']
         sql += " limit " + limit
     sql += ";"
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     total = []
@@ -525,6 +540,7 @@ def listp(request):
     return JsonResponse({"code": 0, "response": total})
 
 def followu(request):
+    print "add following user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -580,6 +596,7 @@ def followu(request):
     return success_response(gen_dict(names, fields))
 
 def listt(request):
+    print "list threads"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -595,7 +612,7 @@ def listt(request):
     if "limit" in request.GET:
         sql += "limit " + request.GET['limit']
     sql += ";"
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = ["id", "isClosed", "isDeleted", "title", "slug", "date", "message", "forum", "user", "likes", "dislikes"]
@@ -604,7 +621,7 @@ def listt(request):
         data = dict(zip(names, row))
         data["points"] = data["likes"] - data["dislikes"]
         data["date"] = str(data["date"])
-        sql2 = "select count(*) from Post where isDeleted=0 and thread=" + str(data["id"]) + ";"
+        sql2 = "select count(*) from Posts where isDeleted=0 and thread=" + str(data["id"]) + ";"
         cursor.execute(sql2)
         resp = cursor.fetchall()
         for row2 in resp:
@@ -613,7 +630,8 @@ def listt(request):
     return success_response(answer)
 
 def dfs(id, limit, cursor, posts, request):
-    sql = "select date, dislikes, forum, id, isApproved, isDeleted, isHighlighted, isEdited, isSpam, likes, message, user, thread, parent from Post where thread = " + str(request.GET['thread']) + " and id = " + str(id) + ";"
+    print "dfs"
+    sql = "select date, dislikes, forum, id, isApproved, isDeleted, isHighlighted, isEdited, isSpam, likes, message, user, thread, parent from Posts where thread = " + str(request.GET['thread']) + " and id = " + str(id) + ";"
     if len(posts) == limit:
         return
     cursor.execute(sql)
@@ -626,13 +644,14 @@ def dfs(id, limit, cursor, posts, request):
         data["points"] = data["likes"] - data["dislikes"]
         answer.append(data)
     posts += answer
-    sql2 = "select id from Post where thread = " + str(request.GET['thread']) + " and parent = " + str(id) + ";"
+    sql2 = "select id from Posts where thread = " + str(request.GET['thread']) + " and parent = " + str(id) + ";"
     cursor.execute(sql2)
     results = cursor.fetchall()
     for row in results:
         dfs(row[0], limit, cursor, posts, request)
 
 def listpostst(request):
+    print "list posts from thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -640,7 +659,7 @@ def listpostst(request):
     sort = request.GET.get('sort', 'flat')
     sql = None
     if sort == 'flat': 
-        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isHighlighted, isEdited, isSpam, likes, message, user, thread, parent from Post "
+        sql = "select date, dislikes, forum, id, isApproved, isDeleted, isHighlighted, isEdited, isSpam, likes, message, user, thread, parent from Posts "
         if "thread" in request.GET:
             sql += "where thread = " + str(request.GET['thread']) + " "
         if "since" in request.GET:
@@ -649,7 +668,7 @@ def listpostst(request):
         if "limit" in request.GET:
             sql += "limit " + request.GET['limit'] 
         sql += ";"
-        print sql
+        #print sql
         cursor.execute(sql)
         results = cursor.fetchall()
         names = ["date", "dislikes", "forum", "id", "isApproved", "isDeleted", "isHighlighted", "isEdited", "isSpam", "likes", "message", "user", "thread", "parent"]
@@ -661,20 +680,21 @@ def listpostst(request):
             answer.append(data)
         return success_response(answer)
     if sort == 'tree':
-        sql = "select id from Post where thread = "+ str(request.GET['thread']) + " and parent is null "
+        sql = "select id from Posts where thread = "+ str(request.GET['thread']) + " and parent is null "
         if "since" in request.GET:
             sql += "and date >= '" + request.GET['since'] + "' "
         sql += "order by date " + request.GET.get('order', 'desc') + ";"
         cursor.execute(sql)
         results = cursor.fetchall()
         answer = []
+        #changed lim to not -1
         lim = int(request.GET.get('limit', '-1'))
-        print lim
+        ##print lim
         for row in results:
             dfs(row[0], lim, cursor, answer, request)
         return success_response(answer)
     if sort == 'parent_tree':
-        sql = "select id from Post where thread = " + str(request.GET['thread']) + " and parent is null order by date "+ request.GET.get('order', 'desc')
+        sql = "select id from Posts where thread = " + str(request.GET['thread']) + " and parent is null order by date "+ request.GET.get('order', 'desc')
         if 'limit' in request.GET:
             sql += " limit " + request.GET["limit"]
         sql += ";"
@@ -686,6 +706,7 @@ def listpostst(request):
         return success_response(answer)
 
 def listthreadsf(request):
+    print "list threads from forum"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -698,7 +719,7 @@ def listthreadsf(request):
     if "limit" in request.GET:
         sql += " limit " + request.GET['limit']
     sql += ";"
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = ["id", "isClosed", "isDeleted", "title", "slug", "date", "message", "forum", "user", "likes", "dislikes"]
@@ -709,7 +730,7 @@ def listthreadsf(request):
         data["date"] = str(data["date"])
         if "user" in request.GET.getlist('related'):
             sql1 = "select * from User where email='" + data["user"]  + "';"
-            print sql1
+            #print sql1
             cursor.execute(sql1)
             results1 = cursor.fetchall()
             ansUser = []
@@ -725,18 +746,18 @@ def listthreadsf(request):
                     data["user"]["subscriptions"].append(row[0])
         if "forum" in request.GET.getlist('related'):
             sql1 = "select * from Forum where short_name='" + request.GET['forum'] + "';"
-            print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>", sql1
+            #print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>", sql1
             cursor.execute(sql1)
             results1 = cursor.fetchall()
             ansForum = []
             data["forum"] = {}
             forumNames = ["id", "name", "short_name", "user"]
-            print "12312312312", results1
+            #print "12312312312", results1
             for forumRow in results1:
                 data["forum"] = dict(zip(forumNames, forumRow))
-                print forumRow
-                print "11111111111111111111111111111111111111111", data["forum"]
-        sql2 = "select count(*) from Post where isDeleted=0 and thread=" + str(data["id"]) + ";"
+                ##print forumRow
+                ##print "11111111111111111111111111111111111111111", data["forum"]
+        sql2 = "select count(*) from Posts where isDeleted=0 and thread=" + str(data["id"]) + ";"
         cursor.execute(sql2)
         resp = cursor.fetchall()
         for row2 in resp:
@@ -745,11 +766,12 @@ def listthreadsf(request):
     return success_response(answer)
 
 def listusersf(request):
+    print "list users from forum"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "select * from User as u inner join Post as p on p.user=u.email where p.forum='" + request.GET["forum"] + "'"
+    sql = "select * from User as u inner join Posts as p on p.user=u.email where p.forum='" + request.GET["forum"] + "'"
     if "since_id" in request.GET:
         sql += " and u.id>=" + request.GET["since_id"]
     sql += " group by u.email"
@@ -774,39 +796,42 @@ def listusersf(request):
     return success_response(answer)
 
 def removep(request):
+    print "remove post"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "update Post set isDeleted=1 where id=" + str(postRequest["post"]) + ";"
-    print sql
+    sql = "update Posts set isDeleted=1 where id=" + str(postRequest["post"]) + ";"
+    #print sql
     cursor.execute(sql)
     db.commit()
     answer = {"post": postRequest["post"]}
     return success_response(answer)
 
 def restorep(request):
+    print "restore post"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "update Post set isDeleted=0 where id=" + str(postRequest["post"]) + ";"
-    print sql
+    sql = "update Posts set isDeleted=0 where id=" + str(postRequest["post"]) + ";"
+    #print sql
     cursor.execute(sql)
     db.commit()
     answer = {"post": postRequest["post"]}
     return success_response(answer)
 
 def updatep(request):
+    print "update post"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "update Post set message='" + postRequest["message"] + "' where id=" + str(postRequest["post"]) + ";"
-    print sql
+    sql = "update Posts set message='" + postRequest["message"] + "' where id=" + str(postRequest["post"]) + ";"
+    #print sql
     cursor.execute(sql)
     db.commit()
-    sql2 = "select * from Post where id=" + str(postRequest["post"]) + ";"
+    sql2 = "select * from Posts where id=" + str(postRequest["post"]) + ";"
     cursor.execute(sql2)
     results = cursor.fetchall()
     names = ["date", "dislikes", "forum", "id", "isApproved", "isDeleted", "isEdited", "isHighlighted", "isSpam", "likes", "message", "user", "thread", "parent"]
@@ -816,18 +841,19 @@ def updatep(request):
     return success_response(answer)
 
 def votep(request):
+    print "vote for post"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     sql = ''
     if postRequest['vote'] == -1:
-        sql = "update Post set dislikes = dislikes + 1 where id=" + str(postRequest["post"]) + ";"
+        sql = "update Posts set dislikes = dislikes + 1 where id=" + str(postRequest["post"]) + ";"
     if postRequest['vote'] == 1:
-        sql = "update Post set likes = likes + 1 where id=" + str(postRequest["post"]) + ";"
+        sql = "update Posts set likes = likes + 1 where id=" + str(postRequest["post"]) + ";"
     cursor.execute(sql)
     db.commit()
-    sql2 = "select * from Post where id=" + str(postRequest["post"]) + ";"
+    sql2 = "select * from Posts where id=" + str(postRequest["post"]) + ";"
     cursor.execute(sql2)
     results = cursor.fetchall()
     names = ["date", "dislikes", "forum", "id", "isApproved", "isDeleted", "isEdited", "isHighlighted", "isSpam", "likes", "message", "user", "thread", "parent"]
@@ -837,6 +863,7 @@ def votep(request):
     return success_response(answer)
 
 def listfollowersu(request):
+    print "list followers of the user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -845,7 +872,7 @@ def listfollowersu(request):
     if "limit" in request.GET:
         sql += " limit " + request.GET["limit"]
     sql += ";" 
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = ["about", "email", "id", "isAnonymous", "name", "username"]
@@ -854,7 +881,7 @@ def listfollowersu(request):
         data = dict(zip(names, row))
         user2 = row[1]
         sql2 = "select follower from Follow where following='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -862,7 +889,7 @@ def listfollowersu(request):
             uans.append(row[0])
         data["followers"] = uans
         sql2 = "select following from Follow where follower='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -880,6 +907,7 @@ def listfollowersu(request):
     return success_response(answer)  
 
 def listfollowingu(request):
+    print "list users that are followed by user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -896,7 +924,7 @@ def listfollowingu(request):
         data = dict(zip(names, row))
         user2 = row[1]
         sql2 = "select follower from Follow where following='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -904,7 +932,7 @@ def listfollowingu(request):
             uans.append(row[0])
         data["followers"] = uans
         sql2 = "select following from Follow where follower='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -920,26 +948,27 @@ def listfollowingu(request):
         data["subscriptions"] = sans
         answer.append(data)
     sql = "select following from Follow where follower='"+ request.GET["user"] + "';"
-    print ":::::::::::::::::::", sql
+    #print ":::::::::::::::::::", sql
     cursor.execute(sql)
     results = cursor.fetchall()
-    for row in results:
-        print ":::::::::::::   ", row[0]
+    #for row in results:
+        #print ":::::::::::::   ", row[0]
     return success_response(answer) 
 
 def listpostsu(request):
+    print "list posts by user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    sql = "select * from Post where user='" + request.GET["user"] + "'"
+    sql = "select * from Posts where user='" + request.GET["user"] + "'"
     if "since" in request.GET:
         sql += " and date>='" + request.GET["since"] + "'"
     sql += " order by date " + request.GET.get("order","desc")
     if "limit" in request.GET:
         sql += " limit " + request.GET["limit"]
     sql += ";"
-    print sql
+    #print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = ["date", "dislikes", "forum", "id", "isApproved", "isDeleted", "isEdited", "isHighlighted", "isSpam", "likes", "message", "user", "thread", "parent"]
@@ -952,17 +981,18 @@ def listpostsu(request):
     return success_response(answer)
 
 def unfollowu(request):
+    print "unfollow user"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
-    print postRequest
+    ##print postRequest
     sql = "delete from Follow where follower='" + postRequest["follower"] + "' and following='" + postRequest["followee"] + "';"
-    print sql
+    #print sql
     cursor.execute(sql)
     db.commit()
     sql2 = "select * from User where email='" + postRequest["follower"] + "';"
-    print sql2
+    #print sql2
     cursor.execute(sql2)
     results = cursor.fetchall()
     names = ["about", "email", "id", "isAnonymous", "name", "username", "user"]
@@ -971,7 +1001,7 @@ def unfollowu(request):
         data = dict(zip(names, row))
         user2 = row[1]
         sql2 = "select follower from Follow where following='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -979,7 +1009,7 @@ def unfollowu(request):
             uans.append(row[0])
         data["followers"] = uans
         sql2 = "select following from Follow where follower='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -997,12 +1027,13 @@ def unfollowu(request):
     return success_response(answer)
 
 def updateprofileu(request):
+    print "update user profile"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
     cursor = db.cursor()
     sql = "update User set about='" + postRequest["about"] + "', name='" + postRequest["name"] + "' where email='" + postRequest["user"] + "';"
-    print sql
+    #print sql
     cursor.execute(sql)
     db.commit()
     sql2 = "select * from User where email='" + postRequest["user"] + "';"
@@ -1014,7 +1045,7 @@ def updateprofileu(request):
         data = dict(zip(names, row))
         user2 = row[1]
         sql2 = "select follower from Follow where following='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -1022,7 +1053,7 @@ def updateprofileu(request):
             uans.append(row[0])
         data["followers"] = uans
         sql2 = "select following from Follow where follower='" + user2 + "';"
-        print sql2
+        #print sql2
         cursor.execute(sql2)
         results = cursor.fetchall()
         uans = []
@@ -1040,6 +1071,7 @@ def updateprofileu(request):
     return success_response(answer)
 
 def closet(request):
+    print "close thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1051,6 +1083,7 @@ def closet(request):
     return success_response(answer)
 
 def opent(request):
+    print "open thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1062,6 +1095,7 @@ def opent(request):
     return success_response(answer)
 
 def removet(request):
+    print "remove thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1069,13 +1103,14 @@ def removet(request):
     sql = "update Thread set isDeleted=1 where id=" + str(postRequest["thread"]) + ";" 
     cursor.execute(sql)
     db.commit()
-    sql = "update Post set isDeleted=1 where thread=" + str(postRequest["thread"]) + ";"
+    sql = "update Posts set isDeleted=1 where thread=" + str(postRequest["thread"]) + ";"
     cursor.execute(sql)
     db.commit()
     answer ={"thread": postRequest["thread"]} 
     return success_response(answer)
 
 def restoret(request):
+    print "restore thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1083,13 +1118,14 @@ def restoret(request):
     sql = "update Thread set isDeleted=0 where id=" + str(postRequest["thread"]) + ";" 
     cursor.execute(sql)
     db.commit() 
-    sql = "update Post set isDeleted=0 where thread=" + str(postRequest["thread"]) + ";"
+    sql = "update Posts set isDeleted=0 where thread=" + str(postRequest["thread"]) + ";"
     cursor.execute(sql)
     db.commit()
     answer ={"thread": postRequest["thread"]} 
     return success_response(answer)
 
 def votet(request):
+    print "vote thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1109,7 +1145,7 @@ def votet(request):
     for row in results:
         data = dict(zip(names, row))
         data["points"] = data["likes"] - data["dislikes"]
-        sql2 = "select count(*) from Post where isDeleted=0 and thread=" + str(data["id"]) + ";"
+        sql2 = "select count(*) from Posts where isDeleted=0 and thread=" + str(data["id"]) + ";"
         cursor.execute(sql2)
         resp = cursor.fetchall()
         for row2 in resp:
@@ -1118,6 +1154,7 @@ def votet(request):
     return success_response(answer)
 
 def subscribet(request):
+    print "subscribe thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1133,6 +1170,7 @@ def subscribet(request):
     return success_response(answer)
 
 def unsubscribet(request):
+    print "unsubscribe thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1145,6 +1183,7 @@ def unsubscribet(request):
     return success_response(answer)
 
 def updatet(request):
+    print "update thread"
     postRequest = None
     if request.method == "POST":
         postRequest = json.loads(request.body)
@@ -1158,7 +1197,7 @@ def updatet(request):
     for row in results:
         data = dict(zip(names, row))
         data["points"] = data["likes"] - data["dislikes"]
-        sql2 = "select count(*) from Post where isDeleted=0 and thread=" + str(data["id"]) + ";"
+        sql2 = "select count(*) from Posts where isDeleted=0 and thread=" + str(data["id"]) + ";"
         cursor.execute(sql2)
         resp = cursor.fetchall()
         for row2 in resp:
@@ -1167,6 +1206,7 @@ def updatet(request):
     return success_response(answer)
 
 def clear(request):
+    print "clear all fucking shit"
     postRequest = None
     #if request.method == "POST":
     #    postRequest = json.loads(request.body)
@@ -1175,7 +1215,7 @@ def clear(request):
     cursor.execute(sql)
     sql = "truncate User;"
     cursor.execute(sql)
-    sql = "truncate Post;"
+    sql = "truncate Posts;"
     cursor.execute(sql)
     sql = "truncate Follow;"
     cursor.execute(sql)
@@ -1211,7 +1251,7 @@ def status(request):
     results = cursor.fetchall()
     for row in results:
         famount = row[0]
-    sql = "select count(*) from Post;"
+    sql = "select count(*) from Posts;"
     cursor.execute(sql)
     results = cursor.fetchall()
     for row in results:
