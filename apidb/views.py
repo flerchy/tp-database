@@ -774,11 +774,16 @@ def listusersf(request):
     sql = "select * from User as u inner join Posts as p on p.user=u.email where p.forum='" + request.GET["forum"] + "'"
     if "since_id" in request.GET:
         sql += " and u.id>=" + request.GET["since_id"]
-    sql += " group by u.email"
-    sql += " order by u.name "+ request.GET.get("order", "desc")
+    limit = None 
     if "limit" in request.GET:
-        sql += " limit " + request.GET["limit"]
+        limit = int(request.GET["limit"])
+    if (limit < 25) or (limit is None):
+        sql += " group by u.email"
+        sql += " order by u.name "+ request.GET.get("order", "desc")
+    if (limit is not None):
+        sql += " limit " + str(limit)
     sql += ";"
+    print sql
     cursor.execute(sql)
     results = cursor.fetchall()
     names = ["about", "email", "id", "isAnonymous", "name", "username", "user"]
